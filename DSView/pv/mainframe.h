@@ -82,7 +82,7 @@ class MainFrame :
     Q_OBJECT
 
 public:
-    static const int Margin = 5;
+    static const int Margin = 12;
 
     enum borderTypes{
         None,
