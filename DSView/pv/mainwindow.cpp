@@ -1227,11 +1227,46 @@ namespace pv
         {
             const auto &sigs = _session->get_signals();
             QKeyEvent *ke = (QKeyEvent *)event;
+
+            if (ke->modifiers() & Qt::ControlModifier)
+            {
+                AppConfig &app = AppConfig::Instance();
+                float minSize, maxSize;
+                AppConfig::GetFontSizeRange(&minSize, &maxSize);
+                float step = 0.1f;
+                bool fontChanged = false;
+
+                if (ke->key() == Qt::Key_Plus || ke->key() == Qt::Key_Equal)
+                {
+                    float newSize = app.appOptions.fontSize + step;
+                    if (newSize > maxSize)
+                        newSize = maxSize;
+                    if (app.appOptions.fontSize != newSize) {
+                        app.appOptions.fontSize = newSize;
+                        fontChanged = true;
+                    }
+                }
+                else if (ke->key() == Qt::Key_Minus)
+                {
+                    float newSize = app.appOptions.fontSize - step;
+                    if (newSize < minSize)
+                        newSize = minSize;
+                    if (app.appOptions.fontSize != newSize) {
+                        app.appOptions.fontSize = newSize;
+                        fontChanged = true;
+                    }
+                }
+
+                if (fontChanged) {
+                    UiManager::Instance()->Update(UI_UPDATE_ACTION_FONT);
+                    return true;
+                }
+            }
             
-            int modifier = ke->modifiers(); 
+            int modifier = ke->modifiers();
  
-            if(modifier & Qt::ControlModifier || 
-               modifier & Qt::ShiftModifier || 
+            if(modifier & Qt::ControlModifier ||
+               modifier & Qt::ShiftModifier ||
                modifier & Qt::AltModifier)
             {
                 return true;

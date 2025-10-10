@@ -28,7 +28,8 @@
 #include <QMenu>
 #include <libsigrok.h> 
 #include <QPushButton>
-
+#include <QDoubleSpinBox>
+ 
 #include "../sigsession.h"
 #include "../interface/icallbacks.h"
 #include "../ui/xtoolbutton.h"
@@ -79,16 +80,18 @@ private slots:
     void on_action_setting_log();
     void on_open_log_file();
     void on_clear_log_file();
-
+    void on_font_size_changed(double size);
+ 
 private:
     bool _enable;
     bool _connected;
     SigSession* _session;
 
     XToolButton _logo_button;
-
+    QDoubleSpinBox *_font_size_spinbox;
+ 
     QMenu *_menu;
-
+ 
     QMenu *_language;
     QAction *_action_en;
     QAction *_action_cn;

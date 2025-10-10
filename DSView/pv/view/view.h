@@ -193,6 +193,8 @@ public:
         return _signalHeight;
     }
 
+    void set_signalHeight(double height);
+
     int headerWidth();
 
     inline Ruler* get_ruler(){
@@ -459,6 +461,7 @@ private:
     int64_t     _preOffset;
     int         _spanY;
     int         _signalHeight;
+    double      _signalHeightFloat;
     bool        _updating_scroll;
 
     // trigger position fix

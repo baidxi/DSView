@@ -98,7 +98,9 @@ View::View(SigSession *session, pv::toolbars::SamplingBar *sampling_bar, QWidget
     _dso_auto(true),
     _show_lissajous(false),
     _back_ready(false)
-{  
+{
+   _signalHeightFloat = 0.0;
+
    _trig_cursor = NULL;
    _search_cursor = NULL;
    _cali = NULL;
@@ -324,6 +326,15 @@ bool View::zoom(double steps, int offset)
     }
 
     return ret;
+}
+
+void View::set_signalHeight(double height)
+{
+    _signalHeightFloat = height;
+    if (_signalHeightFloat < 1.0)
+        _signalHeightFloat = 1.0;
+    
+    signals_changed(NULL);
 }
 
 void View::timebase_changed()
@@ -770,6 +781,9 @@ void View::signals_changed(const Trace* eventTrace)
             else {
                 _signalHeight = (height >= max_height) ? max_height : height;
             }
+
+            if (_signalHeightFloat > 0)
+                _signalHeight = _signalHeightFloat;
         }
         else if (_device_agent->get_work_mode() == DSO) {
             _signalHeight = (_header->height()

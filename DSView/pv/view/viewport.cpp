@@ -1405,7 +1405,19 @@ void Viewport::wheelEvent(QWheelEvent *event)
                 _view.zoom(-zoom_scale, x);
             }
 #else
-            _view.zoom(zoom_scale, x);
+            if (event->modifiers() & Qt::ControlModifier)
+            {
+                if (_view.session().get_device()->get_work_mode() == LOGIC)
+                {
+                    double current_height = _view.get_signalHeight();
+                    double new_height = current_height + zoom_scale;
+                    _view.set_signalHeight(new_height);
+                }
+            }
+            else
+            {
+                _view.zoom(zoom_scale, x);
+            }
 #endif
         }
         else

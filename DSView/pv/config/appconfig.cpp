@@ -414,20 +414,8 @@ void AppConfig::GetFontSizeRange(float *minSize, float *maxSize)
     assert(minSize);
     assert(maxSize);
 
-#ifdef _WIN32
-        *minSize = 7;
-        *maxSize = 12;
-#endif
-
-#ifdef Q_OS_LINUX
-        *minSize = 8;
-        *maxSize = 14;
-#endif
-
-#ifdef Q_OS_DARWIN
-        *minSize = 9;
-        *maxSize = 15;
-#endif
+    *minSize = 5;
+    *maxSize = 30;
 }
 
 bool AppConfig::IsDarkStyle()

@@ -109,11 +109,19 @@ LogoBar::LogoBar(SigSession *session, QWidget *parent) :
     QWidget *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     addWidget(spacer);
+ 
+    _font_size_spinbox = new QDoubleSpinBox(this);
+    _font_size_spinbox->setRange(5.0, 30.0);
+    _font_size_spinbox->setSingleStep(0.5);
+    _font_size_spinbox->setValue(AppConfig::Instance().appOptions.fontSize);
+    addWidget(_font_size_spinbox);
+ 
     addWidget(&_logo_button);
     QWidget *margin = new QWidget(this);
     margin->setMinimumWidth(20);
     addWidget(margin);
-
+ 
+    connect(_font_size_spinbox, SIGNAL(valueChanged(double)), this, SLOT(on_font_size_changed(double)));
     connect(_action_en, SIGNAL(triggered()), this, SLOT(on_actionEn_triggered()));
     connect(_action_cn, SIGNAL(triggered()), this, SLOT(on_actionCn_triggered()));
     connect(_about, SIGNAL(triggered()), this, SLOT(on_actionAbout_triggered()));
@@ -353,11 +361,27 @@ void LogoBar::UpdateTheme()
 }
 
 void LogoBar::UpdateFont()
-{ 
+{
     QFont font = this->font();
     font.setPointSizeF(AppConfig::Instance().appOptions.fontSize);
     ui::set_toolbar_font(this, font);
+ 
+    if (_font_size_spinbox) {
+        _font_size_spinbox->blockSignals(true);
+        _font_size_spinbox->setValue(AppConfig::Instance().appOptions.fontSize);
+        _font_size_spinbox->blockSignals(false);
+    }
 }
-
+ 
+void LogoBar::on_font_size_changed(double size)
+{
+    AppConfig &app = AppConfig::Instance();
+    if (app.appOptions.fontSize != size)
+    {
+        app.appOptions.fontSize = size;
+        UiManager::Instance()->Update(UI_UPDATE_ACTION_FONT);
+    }
+}
+ 
 } // namespace toolbars
 } // namespace pv
