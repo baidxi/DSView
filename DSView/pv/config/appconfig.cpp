@@ -462,7 +462,7 @@ QString GetAppDataDir()
     }
 
     dsv_err("Data directory is not exists: ../share/DSView");
-    assert(false);   
+    return "";
 #else
 
 #ifdef Q_OS_DARWIN
@@ -513,22 +513,29 @@ QString GetUserDataDir()
 
 QString GetDecodeScriptDir()
 {
-    QString path = GetAppDataDir() + "/decoders";
-
-    QDir dir1;
-    // ./decoders
-    if (dir1.exists(path))
-    {
-         return path;     QColor GetStyleColor();
-    }
-
     QDir dir(QCoreApplication::applicationDirPath());
-    // ../share/libsigrokdecode4DSL/decoders
-    if (dir.cd("..") && dir.cd("share") && dir.cd("libsigrokdecode4DSL") && dir.cd("decoders"))
+    // For installed version
+    if (dir.cd("../share/libsigrokdecode4DSL/decoders"))
     {
-         return dir.absolutePath();        
+         return dir.absolutePath();
     }
-    dsv_info("ERROR: the decoder directory is not exists: ../share/libsigrokdecode4DSL/decoders");
+
+    // For development version
+    dir = QDir(QCoreApplication::applicationDirPath());
+    if (dir.cd("../../libsigrokdecode4DSL/decoders"))
+    {
+        return dir.absolutePath();
+    }
+
+    QString app_data_dir = GetAppDataDir();
+    if (!app_data_dir.isEmpty()) {
+        QString path = app_data_dir + "/decoders";
+        if (QDir(path).exists()) {
+            return path;
+        }
+    }
+
+    dsv_info("ERROR: the decoder directory is not found.");
     return "";
 }
 

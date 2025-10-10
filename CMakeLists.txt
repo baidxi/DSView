@@ -23,6 +23,10 @@ cmake_minimum_required(VERSION 2.8.6)
 
 project(DSView)
 
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+
 #===============================================================================
 #= Config Header
 #-------------------------------------------------------------------------------
@@ -182,8 +186,10 @@ find_package(Qt5Core QUIET)
 if(Qt5Core_FOUND)
 	message("----- Qt5:")
 	message(STATUS "	 includes:" ${Qt5Core_INCLUDE_DIRS})
+	include_directories(${Qt5Core_INCLUDE_DIRS})
 	#find_package(Qt5WinExtras REQUIRED)
 	find_package(Qt5Widgets REQUIRED)
+	include_directories(${Qt5Widgets_INCLUDE_DIRS})
 	find_package(Qt5Gui REQUIRED)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
 	#set(QT_INCLUDE_DIRS ${Qt5Gui_INCLUDE_DIRS} ${Qt5Widgets_INCLUDE_DIRS} ${Qt5WinExtras_INCLUDE_DIRS})
@@ -196,9 +202,11 @@ else()
 endif()
 
 if(Qt6Core_FOUND)
-    	message("----- Qt6:")
+	   	message("----- Qt6:")
 	message(STATUS "	 includes:" ${Qt6Core_INCLUDE_DIRS})
+	include_directories(${Qt6Core_INCLUDE_DIRS})
 	find_package(Qt6Widgets REQUIRED)
+	include_directories(${Qt6Widgets_INCLUDE_DIRS})
 	find_package(Qt6Gui REQUIRED)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt6Widgets_EXECUTABLE_COMPILE_FLAGS}")
 	set(QT_INCLUDE_DIRS ${Qt6Gui_INCLUDE_DIRS} ${Qt6Widgets_INCLUDE_DIRS})
