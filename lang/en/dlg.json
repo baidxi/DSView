@@ -700,6 +700,10 @@
         "text": "Font Size"
     },
     {
+        "id": "IDS_DLG_TOOLTIP_FONT_SIZE",
+        "text": "Tooltip font size"
+    },
+    {
         "id": "IDS_DLG_GROUP_LOGIC",
         "text": "Logic Analyzer"
     },

@@ -181,44 +181,10 @@ include_directories(${ZLIB_INCLUDE_DIRS})
 #= Qt5 or Qt6
 #-------------------------------------------------------------------------------
 
-find_package(Qt5Core QUIET)
-
-if(Qt5Core_FOUND)
-	message("----- Qt5:")
-	message(STATUS "	 includes:" ${Qt5Core_INCLUDE_DIRS})
-	include_directories(${Qt5Core_INCLUDE_DIRS})
-	#find_package(Qt5WinExtras REQUIRED)
-	find_package(Qt5Widgets REQUIRED)
-	include_directories(${Qt5Widgets_INCLUDE_DIRS})
-	find_package(Qt5Gui REQUIRED)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
-	#set(QT_INCLUDE_DIRS ${Qt5Gui_INCLUDE_DIRS} ${Qt5Widgets_INCLUDE_DIRS} ${Qt5WinExtras_INCLUDE_DIRS})
-	#set(QT_LIBRARIES Qt5::Gui Qt5::Widgets Qt5::WinExtras)
-	set(QT_INCLUDE_DIRS ${Qt5Gui_INCLUDE_DIRS} ${Qt5Widgets_INCLUDE_DIRS})
-	set(QT_LIBRARIES Qt5::Gui Qt5::Widgets)
-	add_definitions(${Qt5Gui_DEFINITIONS} ${Qt5Widgets_DEFINITIONS})
-else()
-	find_package(Qt6Core QUIET)
-endif()
-
-if(Qt6Core_FOUND)
-	   	message("----- Qt6:")
-	message(STATUS "	 includes:" ${Qt6Core_INCLUDE_DIRS})
-	include_directories(${Qt6Core_INCLUDE_DIRS})
-	find_package(Qt6Widgets REQUIRED)
-	include_directories(${Qt6Widgets_INCLUDE_DIRS})
-	find_package(Qt6Gui REQUIRED)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt6Widgets_EXECUTABLE_COMPILE_FLAGS}")
-	set(QT_INCLUDE_DIRS ${Qt6Gui_INCLUDE_DIRS} ${Qt6Widgets_INCLUDE_DIRS})
-	set(QT_LIBRARIES Qt6::Gui Qt6::Widgets)
-	add_definitions(${Qt6Gui_DEFINITIONS} ${Qt6Widgets_DEFINITIONS})
-endif()
-
-if(NOT Qt5Core_FOUND AND NOT Qt6Core_FOUND)
-	message("Error!The qt5 or qt6 can't find, if them has been installed, please append the install path to CMAKE_PREFIX_PATH, the command as:")
-	message("list(APPEND CMAKE_PREFIX_PATH \"xxx install path\")" )
-	message(FATAL_ERROR  "Can't find Qt5 or Qt6!")
-endif()
+find_package(Qt5 COMPONENTS Widgets REQUIRED)
+message("----- Qt5:")
+message(STATUS "	 includes:" ${Qt5_INCLUDE_DIRS})
+message(STATUS "	 libraries:" ${Qt5_LIBRARIES})
 
 #===============================================================================
 #= boost
@@ -578,7 +544,6 @@ if(Qt6Core_FOUND)
 endif()
 
 
-add_definitions(${QT_DEFINITIONS})
 add_definitions(-Wall -Wextra -Wno-return-type -Wno-ignored-qualifiers)
 
 if(NOT DISABLE_WERROR)
@@ -593,7 +558,6 @@ include_directories(
 	${CMAKE_CURRENT_BINARY_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}
 	${Boost_INCLUDE_DIRS}
-	${QT_INCLUDE_DIRS}
 )
 
 
@@ -621,7 +585,6 @@ set(DSVIEW_LINK_LIBS
 	-lz
 	-lglib-2.0
 	${CMAKE_THREAD_LIBS_INIT}
-	${QT_LIBRARIES}
 	${LIBUSB_1_LIBRARIES}
 	${FFTW_LIBRARIES}
 	${PY_LIB}
@@ -649,7 +612,7 @@ add_executable(${PROJECT_NAME}
 	${libsigrokdecode4DSL_SOURCES}
 )
 
-target_link_libraries(${PROJECT_NAME} ${DSVIEW_LINK_LIBS})
+target_link_libraries(${PROJECT_NAME} ${DSVIEW_LINK_LIBS} Qt5::Widgets)
 
 if(WIN32)
 # Pass -mwindows so that no "DOS box" will open when PulseView is started.

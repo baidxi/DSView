@@ -179,7 +179,7 @@ void DSDialog::build_base(bool hasClose)
     _base_layout->addWidget(_main_widget);
     setLayout(_base_layout); 
 
-    _main_layout->setAlignment(Qt::AlignCenter | Qt::AlignTop);
+    _main_layout->setAlignment(Qt::AlignCenter);
     _main_layout->setContentsMargins(10,5,10,10);   
 } 
 

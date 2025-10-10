@@ -1723,42 +1723,50 @@ void Viewport::paintMeasure(QPainter &p, QColor fore, QColor back)
         }
 
         if (_measure_en) {
-            int typical_width = p.boundingRect(0, 0, INT_MAX, INT_MAX,
-                Qt::AlignLeft | Qt::AlignTop, _mm_width).width();
-            typical_width = max(typical_width, p.boundingRect(0, 0, INT_MAX, INT_MAX,
-                Qt::AlignLeft | Qt::AlignTop, _mm_period).width());
-            typical_width = max(typical_width, p.boundingRect(0, 0, INT_MAX, INT_MAX,
-                Qt::AlignLeft | Qt::AlignTop, _mm_freq).width());
-            typical_width = max(typical_width, p.boundingRect(0, 0, INT_MAX, INT_MAX,
-                Qt::AlignLeft | Qt::AlignTop, _mm_duty).width());
-            typical_width = typical_width + 100;
+            QFont oldFont = p.font();
+            QFont tooltipFont = oldFont;
+            tooltipFont.setPointSizeF(AppConfig::Instance().appOptions.tooltipFontSize);
+            p.setFont(tooltipFont);
+
+            QFontMetrics fm(tooltipFont);
+            int textHeight = fm.height();
+            int padding = 5;
+
+            QStringList labels;
+            labels << (L_S(STR_PAGE_DLG, S_ID(IDS_DLG_WIDTH), "Width: ") + _mm_width);
+            labels << (L_S(STR_PAGE_DLG, S_ID(IDS_DLG_PERIOD), "Period: ") + _mm_period);
+            labels << (L_S(STR_PAGE_DLG, S_ID(IDS_DLG_FREQUENCY), "Frequency: ") + _mm_freq);
+            labels << (L_S(STR_PAGE_DLG, S_ID(IDS_DLG_DUTY_CYCLE), "Duty Cycle: ") + _mm_duty);
+
+            int typical_width = 0;
+            for (const QString &label : labels) {
+                typical_width = max(typical_width, fm.boundingRect(label).width());
+            }
+            typical_width += 2 * padding + 80;
+
+            int totalHeight = labels.count() * textHeight + 2 * padding;
 
             const double width = _view.get_view_width();
             const double height = _view.viewport()->height();
             const double left = _view.hover_point().x();
             const double top = _view.hover_point().y();
             const double right = left + typical_width;
-            const double bottom = top + 80;
-            QPointF org_pos = QPointF(right > width ? left - typical_width : left, bottom > height ? top - 80 : top);
-            QRectF measure_rect = QRectF(org_pos.x(), org_pos.y(), (double)typical_width, 80.0);
-            QRectF measure1_rect = QRectF(org_pos.x(), org_pos.y(), (double)typical_width, 20.0);
-            QRectF measure2_rect = QRectF(org_pos.x(), org_pos.y()+20, (double)typical_width, 20.0);
-            QRectF measure3_rect = QRectF(org_pos.x(), org_pos.y()+40, (double)typical_width, 20.0);
-            QRectF measure4_rect = QRectF(org_pos.x(), org_pos.y()+60, (double)typical_width, 20.0);
-
+            const double bottom = top + totalHeight;
+            QPointF org_pos = QPointF(right > width ? left - typical_width : left, bottom > height ? top - totalHeight : top);
+            
+            QRectF measure_rect = QRectF(org_pos.x(), org_pos.y(), (double)typical_width, totalHeight);
+            
             p.setPen(Qt::NoPen);
             p.setBrush(View::LightBlue);
             p.drawRect(measure_rect);
 
             p.setPen(active_color);
-            p.drawText(measure1_rect, Qt::AlignRight | Qt::AlignVCenter,
-                       L_S(STR_PAGE_DLG, S_ID(IDS_DLG_WIDTH), "Width: ") + _mm_width);
-            p.drawText(measure2_rect, Qt::AlignRight | Qt::AlignVCenter,
-                       L_S(STR_PAGE_DLG, S_ID(IDS_DLG_PERIOD), "Period: ") + _mm_period);
-            p.drawText(measure3_rect, Qt::AlignRight | Qt::AlignVCenter,
-                       L_S(STR_PAGE_DLG, S_ID(IDS_DLG_FREQUENCY), "Frequency: ") + _mm_freq);
-            p.drawText(measure4_rect, Qt::AlignRight | Qt::AlignVCenter,
-                      L_S(STR_PAGE_DLG, S_ID(IDS_DLG_DUTY_CYCLE), "Duty Cycle: ") + _mm_duty);
+            for (int i = 0; i < labels.count(); ++i) {
+                QRectF textRect(org_pos.x() + padding, org_pos.y() + padding + i * textHeight, typical_width - 2 * padding, textHeight);
+                p.drawText(textRect, Qt::AlignRight | Qt::AlignVCenter, labels[i]);
+            }
+            
+            p.setFont(oldFont);
         }
     } 
 

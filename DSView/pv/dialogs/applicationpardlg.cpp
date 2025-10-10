@@ -21,16 +21,22 @@
 
 #include "applicationpardlg.h"
 #include "dsdialog.h"
-#include <QFormLayout>
-#include <QHBoxLayout>
-#include <QVBoxLayout>
 #include <QCheckBox>
-#include <QString>
+#include <QComboBox>
 #include <QFontDatabase>
-#include <QGroupBox>
-#include <QLabel>
-#include <vector>
+#include <QFormLayout>
 #include <QGridLayout>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QObject>
+#include <QScrollArea>
+#include <QScrollBar>
+#include <QSizePolicy>
+#include <QString>
+#include <QVBoxLayout>
+#include <QWidget>
+#include <vector>
 
 #include "../config/appconfig.h"
 #include "../ui/langresource.h"
@@ -108,14 +114,16 @@ bool ApplicationParamDlg::ShowDlg(QWidget *parent)
 {
     DSDialog dlg(parent, true, true);
     dlg.setTitle(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_DISPLAY_OPTIONS), "Display options"));
-    dlg.setMinimumSize(300, 230);
+    AppConfig &app = AppConfig::Instance();
 
     QVBoxLayout *lay = new QVBoxLayout();
-    lay->setContentsMargins(0,10,0,20);
-    lay->setSpacing(8);
 
-    //show config
-    AppConfig &app = AppConfig::Instance(); 
+    const float baseFontSize = 9.0f;
+    const int baseSpacing = 10;
+    float fSize = app.appOptions.fontSize;
+    int dynamicSpacing = static_cast<int>(baseSpacing * (fSize / baseFontSize));
+    lay->setContentsMargins(10, 10, 10, 10);
+    lay->setSpacing(dynamicSpacing);
 
     QCheckBox *ck_quickScroll = new QCheckBox();
     ck_quickScroll->setChecked(app.appOptions.quickScroll);
@@ -133,46 +141,69 @@ bool ApplicationParamDlg::ShowDlg(QWidget *parent)
     ck_autoScrollLatestData->setChecked(app.appOptions.autoScrollLatestData);
 
     QComboBox *ftCbSize = new DsComboBox();
-    ftCbSize->setFixedWidth(50);
     bind_font_size_list(ftCbSize, app.appOptions.fontSize);
+
+    QComboBox *tooltipFtCbSize = new DsComboBox();
+    bind_font_size_list(tooltipFtCbSize, app.appOptions.tooltipFontSize);
    
     // Logic group
-    QGroupBox *logicGroup = new QGroupBox(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_GROUP_LOGIC), "Logic"));
+    QLabel *logicLabel = new QLabel(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_GROUP_LOGIC), "Logic"));
+    logicLabel->setStyleSheet(QString("font-weight: bold; font-size: %1pt; margin-bottom: -%2px;").arg(fSize).arg(static_cast<int>(fSize / 1.5)));
+    QGroupBox *logicGroup = new QGroupBox();
     QGridLayout *logicLay = new QGridLayout();
     logicLay->setContentsMargins(10,15,15,10);
-    logicLay->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     logicGroup->setLayout(logicLay);
-    logicLay->addWidget(new QLabel(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_QUICK_SCROLL), "Quick scroll")), 0, 0, Qt::AlignLeft); 
-    logicLay->addWidget(ck_quickScroll, 0, 1, Qt::AlignRight);
-    logicLay->addWidget(new QLabel(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_USE_ABORT_DATA_REPEAT), "Used abort data")), 1, 0, Qt::AlignLeft); 
-    logicLay->addWidget(ck_abortData, 1, 1, Qt::AlignRight);
-    logicLay->addWidget(new QLabel(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_AUTO_SCROLL_LATEAST_DATA), "Auto scoll latest")), 2, 0, Qt::AlignLeft); 
-    logicLay->addWidget(ck_autoScrollLatestData, 2, 1, Qt::AlignRight);
-    lay->addWidget(logicGroup);
+    logicLay->addWidget(new QLabel(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_QUICK_SCROLL), "Quick scroll")), 0, 0, Qt::AlignLeft | Qt::AlignVCenter);
+    logicLay->addWidget(ck_quickScroll, 0, 1, Qt::AlignRight | Qt::AlignVCenter);
+    logicLay->addWidget(new QLabel(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_USE_ABORT_DATA_REPEAT), "Used abort data")), 1, 0, Qt::AlignLeft | Qt::AlignVCenter);
+    logicLay->addWidget(ck_abortData, 1, 1, Qt::AlignRight | Qt::AlignVCenter);
+    logicLay->addWidget(new QLabel(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_AUTO_SCROLL_LATEAST_DATA), "Auto scoll latest")), 2, 0, Qt::AlignLeft | Qt::AlignVCenter);
+    logicLay->addWidget(ck_autoScrollLatestData, 2, 1, Qt::AlignRight | Qt::AlignVCenter);
+    
+    QVBoxLayout *logicContainer = new QVBoxLayout();
+    logicContainer->setSpacing(0);
+    logicContainer->addWidget(logicLabel, 0, Qt::AlignHCenter);
+    logicContainer->addWidget(logicGroup);
+    lay->addLayout(logicContainer);
 
     //Scope group
-    QGroupBox *dsoGroup = new QGroupBox(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_GROUP_DSO), "Scope"));
+    QLabel *dsoLabel = new QLabel(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_GROUP_DSO), "Scope"));
+    dsoLabel->setStyleSheet(QString("font-weight: bold; font-size: %1pt; margin-bottom: -%2px;").arg(fSize).arg(static_cast<int>(fSize / 1.5)));
+    QGroupBox *dsoGroup = new QGroupBox();
     QGridLayout *dsoLay = new QGridLayout();
     dsoLay->setContentsMargins(10,15,15,10);
-    dsoLay->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     dsoGroup->setLayout(dsoLay);
-    dsoLay->addWidget(new QLabel(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_TRIG_DISPLAY_MIDDLE), "Tig pos in middle")), 0, 0, Qt::AlignLeft);
-    dsoLay->addWidget(ck_trigInMid, 0, 1, Qt::AlignRight);
-    lay->addWidget(dsoGroup);
+    dsoLay->addWidget(new QLabel(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_TRIG_DISPLAY_MIDDLE), "Tig pos in middle")), 0, 0, Qt::AlignLeft | Qt::AlignVCenter);
+    dsoLay->addWidget(ck_trigInMid, 0, 1, Qt::AlignRight | Qt::AlignVCenter);
+
+    QVBoxLayout *dsoContainer = new QVBoxLayout();
+    dsoContainer->setSpacing(0);
+    dsoContainer->addWidget(dsoLabel, 0, Qt::AlignHCenter);
+    dsoContainer->addWidget(dsoGroup);
+    lay->addLayout(dsoContainer);
 
     //UI
-    QGroupBox *uiGroup = new QGroupBox(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_GROUP_UI), "UI"));
+    QLabel *uiLabel = new QLabel(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_GROUP_UI), "UI"));
+    uiLabel->setStyleSheet(QString("font-weight: bold; font-size: %1pt; margin-bottom: -%2px;").arg(fSize).arg(static_cast<int>(fSize / 1.5)));
+    QGroupBox *uiGroup = new QGroupBox();
     QGridLayout *uiLay = new QGridLayout();
     uiLay->setContentsMargins(10,15,15,10);
-    uiLay->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     uiGroup->setLayout(uiLay);
-    uiLay->addWidget(new QLabel(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_DISPLAY_PROFILE_IN_BAR), "Profile in bar")), 0, 0, Qt::AlignLeft);
-    uiLay->addWidget(ck_profileBar, 0, 1, Qt::AlignRight);
-    uiLay->addWidget(new QLabel(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_FONT_SIZE), "Font size")), 1, 0, Qt::AlignLeft);
-    uiLay->addWidget(ftCbSize, 1, 1, Qt::AlignRight);
-    lay->addWidget(uiGroup);
+    uiLay->addWidget(new QLabel(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_DISPLAY_PROFILE_IN_BAR), "Profile in bar")), 0, 0, Qt::AlignLeft | Qt::AlignVCenter);
+    uiLay->addWidget(ck_profileBar, 0, 1, Qt::AlignRight | Qt::AlignVCenter);
+    uiLay->addWidget(new QLabel(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_FONT_SIZE), "Font size")), 1, 0, Qt::AlignLeft | Qt::AlignVCenter);
+    uiLay->addWidget(ftCbSize, 1, 1, Qt::AlignRight | Qt::AlignVCenter);
+    uiLay->addWidget(new QLabel(L_S(STR_PAGE_DLG, S_ID(IDS_DLG_TOOLTIP_FONT_SIZE), "Tooltip font size")), 2, 0, Qt::AlignLeft | Qt::AlignVCenter);
+    uiLay->addWidget(tooltipFtCbSize, 2, 1, Qt::AlignRight | Qt::AlignVCenter);
 
-    dlg.layout()->addLayout(lay);      
+    QVBoxLayout *uiContainer = new QVBoxLayout();
+    uiContainer->setSpacing(0);
+    uiContainer->addWidget(uiLabel, 0, Qt::AlignHCenter);
+    uiContainer->addWidget(uiGroup);
+    lay->addLayout(uiContainer);
+
+    dlg.layout()->addLayout(lay);
+    dlg.adjustSize();
     dlg.exec();
     bool ret = dlg.IsClickYes();
 
@@ -182,6 +213,7 @@ bool ApplicationParamDlg::ShowDlg(QWidget *parent)
         bool bAppChanged = false;
         bool bFontChanged = false;
         float fSize = ftCbSize->currentText().toFloat();
+        float tooltipFSize = tooltipFtCbSize->currentText().toFloat();
 
         if (app.appOptions.quickScroll != ck_quickScroll->isChecked()){
             app.appOptions.quickScroll = ck_quickScroll->isChecked();
@@ -201,6 +233,10 @@ bool ApplicationParamDlg::ShowDlg(QWidget *parent)
         }        
         if (app.appOptions.fontSize != fSize){
             app.appOptions.fontSize = fSize;
+            bFontChanged = true;
+        }
+        if (app.appOptions.tooltipFontSize != tooltipFSize){
+            app.appOptions.tooltipFontSize = tooltipFSize;
             bFontChanged = true;
         }
         if (app.appOptions.autoScrollLatestData != ck_autoScrollLatestData->isChecked()){
@@ -227,4 +263,3 @@ bool ApplicationParamDlg::ShowDlg(QWidget *parent)
 
 } //
 }//
-
