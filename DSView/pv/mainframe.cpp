@@ -405,32 +405,50 @@ void MainFrame::changeEvent(QEvent *event)
 }
 
 bool MainFrame::eventFilter(QObject *object, QEvent *event)
-{ 
+{
     const QEvent::Type type = event->type();
     const QMouseEvent *const mouse_event = (QMouseEvent*)event;
-    int newWidth = 0;
-    int newHeight = 0;
-    int newLeft = 0;
-    int newTop = 0;
 
-#ifdef _WIN32 
+#ifdef _WIN32
     if (_parentNativeWidget != NULL){
         return QFrame::eventFilter(object, event);
     }
+#else
+    if (type == QEvent::MouseButtonPress && !IsMaxsized()) {
+        const QMouseEvent *const mouse_event = static_cast<const QMouseEvent*>(event);
+        if (mouse_event->button() == Qt::LeftButton) {
+            Qt::Edges edges;
+            if (object == _top_left) edges = Qt::TopEdge | Qt::LeftEdge;
+            else if (object == _top) edges = Qt::TopEdge;
+            else if (object == _top_right) edges = Qt::TopEdge | Qt::RightEdge;
+            else if (object == _left) edges = Qt::LeftEdge;
+            else if (object == _right) edges = Qt::RightEdge;
+            else if (object == _bottom_left) edges = Qt::BottomEdge | Qt::LeftEdge;
+            else if (object == _bottom) edges = Qt::BottomEdge;
+            else if (object == _bottom_right) edges = Qt::BottomEdge | Qt::RightEdge;
+
+            if (edges != 0) {
+                if (windowHandle()) {
+                    windowHandle()->startSystemResize(edges);
+                    event->accept();
+                    return true;
+                }
+            }
+        }
+    }
 #endif
-  
-    if (type != QEvent::MouseMove 
-        && type != QEvent::MouseButtonPress 
+
+    if (type != QEvent::MouseMove
+        && type != QEvent::MouseButtonPress
         && type != QEvent::MouseButtonRelease
         && type != QEvent::Leave){
         return QFrame::eventFilter(object, event);
     }
 
-    //when window is maximized, or is moving, call return 
     if (IsMaxsized() || IsMoving()){
        return QFrame::eventFilter(object, event);
     }
- 
+
     if (!_bDraging && type == QEvent::MouseMove && (!(mouse_event->buttons() | Qt::NoButton))){
            if (object == _top_left) {
                 _hit_border = TopLeft;
@@ -460,97 +478,70 @@ bool MainFrame::eventFilter(QObject *object, QEvent *event)
                 _hit_border = None;
                 setCursor(Qt::ArrowCursor);
             }
-
             return QFrame::eventFilter(object, event);
     }
 
+#ifdef _WIN32
   if (type == QEvent::MouseMove) {
- 
         QPoint pt;
         int k = 1;
-        pt = mouse_event->globalPos(); 
+        pt = mouse_event->globalPos();
 
         int datX = pt.x() - _clickPos.x();
         int datY = pt.y() - _clickPos.y();
         datX /= k;
         datY /= k;
-        
+
         int l = _dragStartRegion.left();
         int t = _dragStartRegion.top();
         int r = _dragStartRegion.right();
         int b = _dragStartRegion.bottom();
 
          if(mouse_event->buttons().testFlag(Qt::LeftButton)) {
-
-            // Do nothing this time.
             if (_freezing){
-                return QFrame::eventFilter(object, event);         
+                return QFrame::eventFilter(object, event);
             }
 
             int minW = MainWindow::Min_Width;
             int minH = MainWindow::Min_Height;
-          
+
             switch (_hit_border) {
                 case TopLeft:
-                    l += datX;
-                    t += datY;
-                    if (r - l < minW)
-                        l = r - minW;
-                    if (b - t < minH)
-                        t = b - minH;
+                    l += datX; t += datY;
+                    if (r - l < minW) l = r - minW;
+                    if (b - t < minH) t = b - minH;
                    break;
-
                 case BottomLeft:
-                    l += datX;
-                    b += datY;
-                    if (r - l < minW)
-                        l = r - minW;
-                    if (b - t < minH)
-                        b = t + minH;
+                    l += datX; b += datY;
+                    if (r - l < minW) l = r - minW;
+                    if (b - t < minH) b = t + minH;
                    break;
-
                 case TopRight:
-                    r += datX;
-                    t += datY;
-                    if (r - l < minW)
-                        r = l + minW;
-                    if (b - t < minH)
-                        t = b - minH;
+                    r += datX; t += datY;
+                    if (r - l < minW) r = l + minW;
+                    if (b - t < minH) t = b - minH;
                    break;
-
                 case BottomRight:
-                    r += datX;
-                    b += datY;
-                    if (r - l < minW)
-                        r = l + minW;
-                    if (b - t < minH)
-                        b = t + minH;
+                    r += datX; b += datY;
+                    if (r - l < minW) r = l + minW;
+                    if (b - t < minH) b = t + minH;
                    break;
-
                 case Left:
                     l += datX;
-                    if (r - l < minW)
-                        l = r - minW;                    
+                    if (r - l < minW) l = r - minW;
                    break;
-
                 case Right:
-                    r += datX; 
-                    if (r - l < minW)
-                        r = l + minW;                     
+                    r += datX;
+                    if (r - l < minW) r = l + minW;
                    break;
-
-                case Top: 
-                    t += datY; 
-                    if (b - t < minH)
-                        t = b - minH;                    
+                case Top:
+                    t += datY;
+                    if (b - t < minH) t = b - minH;
                    break;
-
-                case Bottom: 
-                    b += datY; 
-                    if (b - t < minH)
-                        b = t + minH;                    
+                case Bottom:
+                    b += datY;
+                    if (b - t < minH) b = t + minH;
                    break;
-
                 default:
                     r = l;
                    break;
@@ -558,34 +549,30 @@ bool MainFrame::eventFilter(QObject *object, QEvent *event)
 
             if (r != l){
                 SetFormRegion(l, t, r-l, b-t);
-                #ifndef _WIN32
-                    saveNormalRegion();
-                #endif
-            }            
-         
+            }
             return true;
         }
     }
     else if (type == QEvent::MouseButtonPress) {
-        if (mouse_event->button() == Qt::LeftButton) 
+        if (mouse_event->button() == Qt::LeftButton)
         if (_hit_border != None)
             _bDraging = true;
-        _timer.start(50); 
+        _timer.start(50);
 
         _clickPos = mouse_event->globalPos();
         _dragStartRegion = GetFormRegion();
-    } 
+    }
     else if (type == QEvent::MouseButtonRelease) {
-        if (mouse_event->button() == Qt::LeftButton) {         
+        if (mouse_event->button() == Qt::LeftButton) {
             _bDraging = false;
-            _timer.stop(); 
+            _timer.stop();
         }
     }
     else if (!_bDraging && type == QEvent::Leave) {
         _hit_border = None;
         setCursor(Qt::ArrowCursor);
-    } 
-    
+    }
+#endif
     return QFrame::eventFilter(object, event);
 }
 

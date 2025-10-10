@@ -31,6 +31,7 @@
 #include <assert.h>
 #include <QTimer>
 #include <QGuiApplication>
+#include <QWindow>
 
 #include "../config/appconfig.h"
 #include "../appcontrol.h"
@@ -213,41 +214,49 @@ void TitleBar::setRestoreButton(bool max)
 }
   
 void TitleBar::mousePressEvent(QMouseEvent* event)
-{ 
+{
     bool ableMove = !ParentIsMaxsized();
 
-    if(event->button() == Qt::LeftButton && ableMove && _is_able_drag) 
+    if(event->button() == Qt::LeftButton && ableMove && _is_able_drag)
     {
+#ifndef _WIN32
+        if (_parent && _parent->windowHandle()) {
+            _parent->windowHandle()->startSystemMove();
+            event->accept();
+            return;
+        }
+#endif
         int x = event->pos().x();
-        int y = event->pos().y(); 
-        
+        int y = event->pos().y();
+
         bool bTopWidow = AppControl::Instance()->GetTopWindow() == _parent;
         bool bClick = (x >= 6 && y >= 5 && x <= width() - 6);  //top window need resize hit check
- 
-        if (!bTopWidow || bClick ){
-            _is_draging = true;             
 
-            _clickPos = event->globalPos(); 
+        if (!bTopWidow || bClick ){
+            _is_draging = true;
+
+            _clickPos = event->globalPos();
 
             if (_titleParent != NULL){
                 _oldPos = _titleParent->GetParentPos();
             }
             else{
-                _oldPos = _parent->pos(); 
+                _oldPos = _parent->pos();
             }
 
             _is_done_moved = false;
-                
+
             event->accept();
             return;
-        } 
-    }  
+        }
+    }
     QWidget::mousePressEvent(event);
 }
 
 void TitleBar::mouseMoveEvent(QMouseEvent *event)
-{  
-    if(_is_draging){ 
+{
+#ifdef _WIN32
+    if(_is_draging){
 
         int datX = 0;
         int datY = 0;
@@ -278,8 +287,6 @@ void TitleBar::mouseMoveEvent(QMouseEvent *event)
         }
         else{
 
-#ifdef _WIN32
-
         QRect screenRect = AppControl::Instance()->_screenRect;
 
         if (screenRect.width() > 0 && QGuiApplication::screens().size() > 1)
@@ -294,14 +301,14 @@ void TitleBar::mouseMoveEvent(QMouseEvent *event)
                 x = screenRect.right() - _parent->frameGeometry().width();
             }
         }
-#endif
 
             _parent->move(x, y);
         }
-        
+
         event->accept();
         return;
-    } 
+    }
+#endif
     QWidget::mouseMoveEvent(event);
 }
 
