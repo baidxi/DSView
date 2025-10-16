@@ -47,11 +47,11 @@ class Decoder(srd.Decoder):
         ('bit', 'Bit'),
         ('ack', 'ACK'),
         ('nack', 'NACK'),
-        ('addr-read', 'Addr R'),
-        ('addr-write', 'Addr W'),
+        ('addr-read', 'Addr Read'),
+        ('addr-write', 'Addr Write'),
         ('reg', 'Register'),
-        ('data-read', 'Data R'),
-        ('data-write', 'Data W'),
+        ('data-read', 'Data Read'),
+        ('data-write', 'Data Write'),
         ('transaction', 'Transaction'),
     )
 
@@ -168,7 +168,7 @@ class Decoder(srd.Decoder):
             return
 
         addr_val = self.address >> 1
-        rw = 'R' if self.address & 1 else 'W'
+        rw = 'Read' if self.address & 1 else 'Write'
         addr_str = 'Addr:%02X(%s)' % (addr_val, rw)
 
         reg_str = ''
@@ -181,13 +181,13 @@ class Decoder(srd.Decoder):
 
         data_str = ''
         if self.data_w:
-            data_str = ' W:' + ' '.join(['%02X' % b for b in self.data_w])
+            data_str = ' Write:' + ' '.join(['%02X' % b for b in self.data_w])
             if cmd_info and cmd_info[1] == 'linear' and len(self.data_w) == 2:
                 val = (self.data_w[1] << 8) | self.data_w[0]
                 decoded_val = self.decode_linear_format(val)
                 data_str += ' (%.4f)' % decoded_val
         elif self.data_r:
-            data_str = ' R:' + ' '.join(['%02X' % b for b in self.data_r])
+            data_str = ' Read:' + ' '.join(['%02X' % b for b in self.data_r])
             if cmd_info and cmd_info[1] == 'linear' and len(self.data_r) == 2:
                 val = (self.data_r[1] << 8) | self.data_r[0]
                 decoded_val = self.decode_linear_format(val)
@@ -205,11 +205,17 @@ class Decoder(srd.Decoder):
         return y * (2.0 ** n)
 
     def handle_start(self):
-        if self.address is not None:
-            self.output_bus_data(self.ss)
-
-        self.reset_transaction_data()
-        self.transaction_ss = self.ss
+        # This is a repeated start.
+        if self.state != 'IDLE':
+            # If there is no command, it's a normal I2C read.
+            if self.command_reg is None:
+                self.output_bus_data(self.ss)
+                self.reset_transaction_data()
+                self.transaction_ss = self.ss
+            # Otherwise it's a PMBus read. Don't reset transaction data.
+        else:
+            self.reset_transaction_data()
+            self.transaction_ss = self.ss
 
         self.put_ann(self.ss, self.samplenum, 0, ['Start'])
         self.state = 'ADDRESS'
@@ -249,20 +255,23 @@ class Decoder(srd.Decoder):
         if self.transaction_type == 'ADDRESS':
             self.address = self.byte
             addr_val = self.byte >> 1
-            self.rw = 'R' if self.byte & 1 else 'W'
-            ann_type = 5 if self.rw == 'R' else 6
+            self.rw = 'Read' if self.byte & 1 else 'Write'
+            ann_type = 5 if self.rw == 'Read' else 6
             self.put_ann(self.byte_ss, byte_es, ann_type, ['%02X' % addr_val])
-            self.state = 'COMMAND'
+            if self.rw == 'Read':
+                self.state = 'DATA'
+            else:
+                self.state = 'COMMAND'
         elif self.transaction_type == 'COMMAND':
             self.command_reg = self.byte
             self.put_ann(self.byte_ss, byte_es, 7, ['%02X' % self.byte])
             self.state = 'DATA'
         elif self.transaction_type == 'DATA':
-            if self.rw == 'W':
+            if self.rw == 'Write':
                 self.data_w.append(self.byte)
             else:
                 self.data_r.append(self.byte)
-            ann_type = 8 if self.rw == 'R' else 9
+            ann_type = 8 if self.rw == 'Read' else 9
             self.put_ann(self.byte_ss, byte_es, ann_type, ['%02X' % self.byte])
             self.state = 'DATA'
 
