@@ -36,22 +36,17 @@ class Decoder(srd.Decoder):
         {'id': 'sda', 'name': 'SDA', 'desc': 'Serial Data Line'},
     )
 
-    options = (
-        {'id': 'show_bits', 'desc': 'Show bits', 'default': 'yes',
-            'values': ('yes', 'no')},
-    )
-
     annotations = (
         ('start', 'Start'),
         ('stop', 'Stop'),
         ('bit', 'Bit'),
         ('ack', 'ACK'),
         ('nack', 'NACK'),
-        ('addr-read', 'Addr R'),
-        ('addr-write', 'Addr W'),
+        ('addr-read', 'Addr Read'),
+        ('addr-write', 'Addr Write'),
         ('reg', 'Register'),
-        ('data-read', 'Data R'),
-        ('data-write', 'Data W'),
+        ('data-read', 'Data Read'),
+        ('data-write', 'Data Write'),
         ('transaction', 'Transaction'),
     )
 
@@ -173,7 +168,7 @@ class Decoder(srd.Decoder):
         0xCB: ('MFR_LOOP_PIN_CONFIG', None),
         0xCC: ('MFR_LOOP_FAN_CONFIG', None),
         0xCD: ('MFR_LOOP_PMBUS_CONFIG', None),
-        0xCE: ('MFR_LOOP_GPIO_CONFIG', None),
+        0xCE: ('MFR_REGISTER_POINTER', None),
         0xCF: ('MFR_LOOP_USER_CONFIG', None),
         0xD0: ('MFR_VOUT_PEAK', 'vout'),
         0xD1: ('MFR_IOUT_PEAK', 'linear'),
@@ -189,8 +184,8 @@ class Decoder(srd.Decoder):
         0xDB: ('MFR_TRIM_SELECT', None),
         0xDC: ('MFR_TRIM_VALUE', None),
         0xDD: ('MFR_TRIM_STATUS', None),
-        0xDE: ('MFR_TRIM_ACTION', None),
-        0xDF: ('MFR_TRIM_CONFIG', None),
+        0xDE: ('MFR_REG_WRITE', None),
+        0xDF: ('MFR_REG_READ', None),
         0xE0: ('MFR_SPECIFIC_00', None),
         0xE1: ('MFR_SPECIFIC_01', None),
         0xE2: ('MFR_SPECIFIC_02', None),
@@ -220,8 +215,8 @@ class Decoder(srd.Decoder):
         0xFA: ('MFR_PAGE_ALL', None),
         0xFB: ('MFR_OTP_CTRL', None),
         0xFC: ('MFR_OTP_STATUS', None),
-        0xFD: ('MFR_NVM_COMPARE', None),
-        0xFE: ('MFR_NVM_STATUS', None),
+        0xFD: ('MFR_FW_COMMAND_DATA', None),
+        0xFE: ('MFR_FW_COMMAND', None),
     }
 
     def __init__(self):
@@ -231,7 +226,7 @@ class Decoder(srd.Decoder):
         self.state = 'IDLE'
         self.bitcount = 0
         self.byte = 0
-        self.rw = 'W'
+        self.rw = 'Write'
         self.transaction_type = None
         
         self.last_scl = -1
@@ -262,7 +257,7 @@ class Decoder(srd.Decoder):
             return
 
         addr_val = self.address >> 1
-        rw = 'R' if self.address & 1 else 'W'
+        rw = 'Read' if self.address & 1 else 'Write'
         addr_str = 'Addr:%02X(%s)' % (addr_val, rw)
 
         reg_str = ''
@@ -280,10 +275,10 @@ class Decoder(srd.Decoder):
         data_str = ''
         data_bytes = None
         if self.data_w:
-            data_str = ' W:' + ' '.join(['%02X' % b for b in self.data_w])
+            data_str = ' Write:' + ' '.join(['%02X' % b for b in self.data_w])
             data_bytes = self.data_w
         elif self.data_r:
-            data_str = ' R:' + ' '.join(['%02X' % b for b in self.data_r])
+            data_str = ' Read:' + ' '.join(['%02X' % b for b in self.data_r])
             data_bytes = self.data_r
 
         if cmd_info and data_bytes:
@@ -447,28 +442,31 @@ class Decoder(srd.Decoder):
         })
 
     def handle_start(self):
-        if self.address is not None:
-            self.output_bus_data(self.ss)
+        if self.state != 'IDLE':
+            # Repeated start. Finalize previous transaction.
+            if self.address is not None:
+                self.output_bus_data(self.ss)
+            self.reset_transaction_data()
+            self.transaction_ss = self.ss
+        else:
+            # Normal start.
+            self.reset_transaction_data()
+            self.transaction_ss = self.ss
 
-        self.reset_transaction_data()
-        self.transaction_ss = self.ss
-
-        self.put_ann(self.ss, self.samplenum, 0, ['Start'])
+        self.put_ann(self.samplenum, self.samplenum, 0, ['S'])
         self.state = 'ADDRESS'
         self.bitcount = 0
         self.byte = 0
 
     def handle_stop(self):
-        self.put_ann(self.ss, self.samplenum, 1, ['Stop'])
-        self.output_bus_data(self.samplenum)
+        self.put_ann(self.samplenum, self.samplenum, 1, ['P'])
+        if self.address is not None:
+            self.output_bus_data(self.samplenum)
         self.state = 'IDLE'
 
     def process_bit(self, sda):
         if self.bitcount == 0:
             self.byte_ss = self.ss
-        
-        if self.options['show_bits'] == 'yes':
-            self.put_ann(self.ss, self.samplenum, 2, [str(sda)])
         
         self.byte = (self.byte << 1) | sda
         self.bitcount += 1
@@ -491,26 +489,30 @@ class Decoder(srd.Decoder):
         if self.transaction_type == 'ADDRESS':
             self.address = self.byte
             addr_val = self.byte >> 1
-            self.rw = 'R' if self.byte & 1 else 'W'
-            ann_type = 5 if self.rw == 'R' else 6
-            self.put_ann(self.byte_ss, byte_es, ann_type, ['%02X' % addr_val])
+            self.rw = 'Read' if self.byte & 1 else 'Write'
+            ann_type = 5 if self.rw == 'Read' else 6
+            ann_str = 'Addr:%02X' % (addr_val)
+            self.put_ann(self.byte_ss, byte_es, ann_type, [ann_str])
             self.state = 'COMMAND'
         elif self.transaction_type == 'COMMAND':
             self.command_reg = self.byte
-            self.put_ann(self.byte_ss, byte_es, 7, ['%02X' % self.byte])
+            cmd_str = 'Reg:%02X' % self.byte
+            if self.command_reg in self.pmbus_commands:
+                cmd_info = self.pmbus_commands[self.command_reg]
+                cmd_name = cmd_info[0]
+                if cmd_name:
+                    cmd_str += ' (%s)' % cmd_name
+            self.put_ann(self.byte_ss, byte_es, 7, [cmd_str])
             self.state = 'DATA'
         elif self.transaction_type == 'DATA':
-            if self.rw == 'W':
+            if self.rw == 'Write':
                 self.data_w.append(self.byte)
             else:
                 self.data_r.append(self.byte)
-            ann_type = 8 if self.rw == 'R' else 9
-            self.put_ann(self.byte_ss, byte_es, ann_type, ['%02X' % self.byte])
+            ann_type = 8 if self.rw == 'Read' else 9
+            data_str = '%s:%02X' % (self.rw, self.byte)
+            self.put_ann(self.byte_ss, byte_es, ann_type, [data_str])
             self.state = 'DATA'
-
-        if self.options['show_bits'] == 'yes':
-            ack_ann_type = 3 if sda == 0 else 4
-            self.put_ann(self.ss, self.samplenum, ack_ann_type, ['ACK' if sda == 0 else 'NACK'])
         
         self.bitcount = 0
         self.byte = 0
